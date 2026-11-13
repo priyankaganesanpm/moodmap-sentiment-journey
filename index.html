@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html><head><meta charset="UTF-8">
+<title>MoodMap – Customer Sentiment Journey</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="https://cdn.jsdelivr.net/npm/highcharts@12.1.2/highcharts.js"></script>
+<style>
+:root{--color-bg:#faf9fc;--color-bg-secondary:#ffffff;--color-surface:#f9fafb;--color-surface-hover:#f3f4f6;
+--color-border:rgba(0,0,0,.12);--color-border-light:rgba(0,0,0,.06);--color-text:#1a1a1a;--color-text-secondary:#5e5e5e;
+--color-text-muted:#9ca3af;--color-text-on-primary:#ffffff;--color-primary:#9333ea;--color-success:#22c55e;--color-success-dark:#16a34a;
+--color-success-bg:rgba(34,197,94,.1);--color-success-border:rgba(34,197,94,.3);--color-error:#ef4444;--color-error-dark:#dc2626;
+--color-error-bg:rgba(239,68,68,.1);--color-error-border:rgba(239,68,68,.3);--color-warning:#f59e0b;--color-info:#3b82f6;
+--color-info-bg:rgba(59,130,246,.1);--color-info-border:rgba(59,130,246,.3);
+--font-sans:'Segoe UI',Roboto,Helvetica,Arial,sans-serif;--font-mono:Consolas,'SF Mono',monospace;
+--radius-sm:6px;--radius-md:10px;--shadow-sm:0 1px 2px rgba(0,0,0,.05)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--color-bg);font-family:var(--font-sans);color:var(--color-text);padding:20px}
+h1{margin:0 0 4px;font-size:22px}
+.sub{color:var(--color-text-secondary);font-size:13px;margin-bottom:16px}
+.grid{display:grid;grid-template-columns:1.15fr 1fr;gap:16px}
+.card{background:var(--color-bg-secondary);border:1px solid var(--color-border-light);border-radius:var(--radius-md);padding:16px;box-shadow:var(--shadow-sm)}
+.label{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--color-text-muted);margin-bottom:8px}
+#chat{height:420px;overflow-y:auto;display:flex;flex-direction:column;gap:10px;padding-right:4px}
+.msg{display:flex;gap:8px;align-items:flex-end;max-width:88%}
+.msg.user{align-self:flex-end;flex-direction:row-reverse}
+.bubble{padding:10px 12px;border-radius:var(--radius-md);font-size:14px;line-height:1.45}
+.user .bubble{background:var(--color-primary);color:var(--color-text-on-primary)}
+.bot .bubble{background:var(--color-surface);border:1px solid var(--color-border-light)}
+.face{font-size:26px;line-height:1}
+.tag{font-size:11px;color:var(--color-text-muted);margin-top:3px;font-family:var(--font-mono)}
+.user .tag{text-align:right}
+.inputrow{display:flex;gap:8px;margin-top:12px}
+input{flex:1;padding:10px 12px;border:1px solid var(--color-border);border-radius:var(--radius-sm);font-size:14px;background:var(--color-bg-secondary);color:var(--color-text);font-family:var(--font-sans)}
+button{padding:9px 14px;border:none;border-radius:var(--radius-sm);cursor:pointer;font-size:13px;font-family:var(--font-sans);transition:all .15s ease}
+.primary{background:var(--color-primary);color:var(--color-text-on-primary)}
+.primary:hover{opacity:.88}
+.ghost{background:var(--color-surface);border:1px solid var(--color-border);color:var(--color-text)}
+.ghost:hover{background:var(--color-surface-hover)}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.chips button{font-size:12px;padding:5px 10px}
+.mood{display:flex;align-items:center;gap:16px}
+#bigFace{font-size:72px;transition:transform .25s ease}
+#bigFace.pop{transform:scale(1.2)}
+#moodName{font-size:20px;font-weight:600}
+#moodScore{font-family:var(--font-mono);color:var(--color-text-secondary);font-size:13px}
+.meter{height:8px;border-radius:8px;background:linear-gradient(90deg,var(--color-error),var(--color-warning),var(--color-success));position:relative;margin-top:10px}
+#needle{position:absolute;top:-4px;width:4px;height:16px;background:var(--color-text);border-radius:2px;left:50%;transition:left .3s ease}
+#journey{display:flex;gap:6px;flex-wrap:wrap;font-size:24px;min-height:32px;align-items:center}
+#journey span.arrow{font-size:12px;color:var(--color-text-muted)}
+.stack{display:flex;flex-direction:column;gap:16px}
+.kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px}
+.kpi{background:var(--color-surface);border-radius:var(--radius-sm);padding:8px;text-align:center}
+.kpi b{display:block;font-family:var(--font-mono);font-size:16px}
+.kpi small{color:var(--color-text-muted);font-size:11px}
+#outcome{display:none;text-align:center;padding:12px;border-radius:var(--radius-md);margin-top:10px}
+#outcome.ok{display:block;background:var(--color-success-bg);border:1px solid var(--color-success-border)}
+#outcome.bad{display:block;background:var(--color-error-bg);border:1px solid var(--color-error-border)}
+#outcome .f{font-size:56px}
+.agent{font-size:12px;color:var(--color-text-secondary);background:var(--color-info-bg);border:1px solid var(--color-info-border);border-radius:var(--radius-sm);padding:8px;margin-top:10px;font-family:var(--font-mono)}
+@media(max-width:820px){.grid{grid-template-columns:1fr}}
+</style></head>
+<body>
+<h1>😊 MoodMap: Customer Sentiment Journey</h1>
+<div class="sub">Describe your problem. After every message, the sentiment agent reads how you feel, gives it a smiley, and changes its reply to fit your situation.</div>
+
+<div class="grid">
+ <div class="card">
+  <div class="label">Support chat</div>
+  <div id="chat"></div>
+  <div class="inputrow">
+   <input id="inp" placeholder="Type your problem… e.g. My order is 5 days late and nobody is helping!" />
+   <button class="primary" id="send">Send</button>
+  </div>
+  <div class="chips" id="chips"></div>
+ </div>
+
+ <div class="stack">
+  <div class="card">
+   <div class="label">Live customer mood</div>
+   <div class="mood"><div id="bigFace">😐</div>
+    <div><div id="moodName">Waiting for customer</div><div id="moodScore">score: n/a</div></div></div>
+   <div class="meter"><div id="needle"></div></div>
+   <div class="agent" id="agentLog">Sentiment agent: idle</div>
+  </div>
+  <div class="card">
+   <div class="label">Emotion journey (one smiley per message)</div>
+   <div id="journey"><span style="font-size:13px;color:var(--color-text-muted)">No messages yet</span></div>
+   <div id="chart" style="height:180px;margin-top:8px"></div>
+   <div class="kpis">
+    <div class="kpi"><b id="kTurns">0</b><small>Customer messages</small></div>
+    <div class="kpi"><b id="kStart">n/a</b><small>Start mood</small></div>
+    <div class="kpi"><b id="kShift">n/a</b><small>Mood change</small></div>
+   </div>
+  </div>
+  <div class="card">
+   <div class="label">Resolution mapping</div>
+   <div style="display:flex;gap:8px">
+    <button class="ghost" id="btnYes">✅ Mark solved</button>
+    <button class="ghost" id="btnNo">❌ Mark not solved</button>
+    <button class="ghost" id="btnReset">↺ New customer</button>
+   </div>
+   <div id="outcome"></div>
+  </div>
+ </div>
+</div>
+
+<div class="card" style="margin-top:16px">
+ <div class="label">Bulk review analysis (CSV upload)</div>
+ <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+  <input type="file" id="csvFile" accept=".csv,.txt" style="flex:0 1 320px">
+  <button class="primary" id="btnSample">Load sample reviews</button>
+  <button class="ghost" id="btnExport" disabled>⬇ Download results CSV</button>
+  <span style="font-size:12px;color:var(--color-text-muted)">The file needs a column named review, text, comment, body or content. A rating or stars column is optional.</span>
+ </div>
+ <div id="bulkOut" style="display:none;margin-top:14px">
+  <div class="kpis" style="grid-template-columns:repeat(4,1fr)">
+   <div class="kpi"><b id="bTotal">0</b><small>Reviews</small></div>
+   <div class="kpi"><b id="bAvg">n/a</b><small>Avg mood</small></div>
+   <div class="kpi"><b id="bPos">n/a</b><small>Positive %</small></div>
+   <div class="kpi"><b id="bNeg">n/a</b><small>Negative %</small></div>
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:12px">
+   <div id="bPie" style="height:260px"></div>
+   <div id="bBar" style="height:260px"></div>
+  </div>
+  <div style="display:flex;gap:6px;margin:10px 0" id="bFilter"></div>
+  <div style="max-height:320px;overflow:auto">
+   <table style="width:100%;border-collapse:collapse;font-size:13px" id="bTable"></table>
+  </div>
+ </div>
+</div>
+
+<script>
+/* ===== Sentiment Agent (lexicon + rules) ===== */
+const LEX={
+ // negative
+ angry:-4,furious:-5,worst:-4,terrible:-4,horrible:-4,useless:-4,pathetic:-5,disgusting:-4,scam:-5,fraud:-5,hate:-4,ridiculous:-3,
+ annoyed:-3,frustrated:-3,frustrating:-3,upset:-3,disappointed:-3,disappointing:-3,bad:-2,poor:-2,late:-2,delay:-2,delayed:-2,
+ broken:-3,damaged:-3,defective:-3,wrong:-2,missing:-2,never:-1,problem:-1,issue:-1,error:-2,failed:-2,fail:-2,stuck:-2,
+ waiting:-1,waste:-3,rude:-3,ignored:-3,cheated:-4,sad:-2,unhappy:-3,worried:-2,confused:-1,slow:-2,refund:-1,cancel:-1,
+ nobody:-2,again:-1,still:-1,complaint:-2,
+ // positive
+ thanks:2,thank:2,thx:2,good:2,great:3,awesome:4,excellent:4,amazing:4,perfect:4,love:3,happy:3,glad:3,helpful:3,
+ resolved:3,solved:3,fixed:3,works:2,working:2,received:2,appreciate:3,nice:2,fine:1,okay:1,ok:1,quick:2,fast:2,
+ finally:1,relieved:3,satisfied:3,wonderful:4,best:3,hope:1,hopefully:1,please:0.5,sure:1,yes:1
+};
+const NEG=['not','no',"don't","dont","didn't","didnt","isn't","isnt","wasn't","never","cannot","can't","cant","won't","wont"];
+const INT={very:1.5,so:1.4,really:1.4,extremely:1.8,totally:1.5,absolutely:1.6,too:1.3};
+const MOODS=[
+ {min:-99,max:-0.6,face:'😡',name:'Angry'},
+ {min:-0.6,max:-0.3,face:'😠',name:'Frustrated'},
+ {min:-0.3,max:-0.08,face:'😟',name:'Worried / Upset'},
+ {min:-0.08,max:0.12,face:'😐',name:'Neutral'},
+ {min:0.12,max:0.35,face:'🙂',name:'Hopeful'},
+ {min:0.35,max:0.6,face:'😊',name:'Happy'},
+ {min:0.6,max:99,face:'😍',name:'Delighted'}
+];
+function analyze(text){
+ const raw=text;
+ const toks=text.toLowerCase().replace(/[^a-z'\s]/g,' ').split(/\s+/).filter(Boolean);
+ let s=0,hits=[];
+ toks.forEach((t,i)=>{
+  if(LEX[t]===undefined)return;
+  let v=LEX[t];
+  const p1=toks[i-1],p2=toks[i-2];
+  if(INT[p1])v*=INT[p1];
+  if(NEG.includes(p1)||NEG.includes(p2))v*=-0.7;
+  s+=v;hits.push(t+'('+v.toFixed(1)+')');
+ });
+ const ex=(raw.match(/!/g)||[]).length; if(ex&&s<0)s*=1+Math.min(ex,3)*0.15;
+ const caps=(raw.match(/\b[A-Z]{3,}\b/g)||[]).length; if(caps&&s<0)s*=1.3;
+ const score=Math.max(-1,Math.min(1,s/Math.max(4,Math.sqrt(toks.length)*2.2)));
+ const mood=MOODS.find(m=>score>=m.min&&score<m.max);
+ return {score,mood,hits};
+}
+function topic(t){t=t.toLowerCase();
+ if(/refund|money back|return/.test(t))return 'refund';
+ if(/deliver|late|shipping|courier|order|track|arriv/.test(t))return 'delivery';
+ if(/damag|broken|defect|wrong item|missing/.test(t))return 'product';
+ if(/pay|charged|card|upi|debit|transaction/.test(t))return 'payment';
+ if(/login|password|account|otp|sign/.test(t))return 'account';
+ return null;}
+const FIX={
+ delivery:"I've checked your order. It's at the local hub and has been marked for priority delivery within 24 hours. Here is the live tracking link: TRK-48213.",
+ refund:"I've started your refund (Ref RF-77310). It will be back in your original payment method within 3–5 working days.",
+ product:"Sorry about the damaged item. I've arranged a free replacement with doorstep pickup tomorrow, and you don't need to pack it.",
+ payment:"I can see the duplicate charge. I've reversed it (Ref PY-55102), and it should show in your account within 48 hours.",
+ account:"I've sent a secure reset link to your registered email and removed the lock on your account. Please try logging in now.",
+ general:"I've logged this as a priority ticket (TK-90021) and assigned a specialist to it."
+};
+/* ===== Situation-aware reply policy ===== */
+const st={turns:[],topic:null,fixGiven:false,escalated:false,done:false};
+function reply(text,a){
+ const n=st.turns.length, prev=n>1?st.turns[n-2].score:null, trend=prev===null?0:a.score-prev;
+ const tp=topic(text); if(tp)st.topic=tp; const T=st.topic||'general';
+ const low=text.toLowerCase();
+ if(/(solved|resolved|fixed|works now|working now|got it|received it|all good)/.test(low)&&!/not (solved|resolved|fixed|working)/.test(low)){
+   finish(true,'auto'); return "I'm really glad it's sorted! 🎉 I've marked your issue as solved. Is there anything else I can help with?";}
+ if(/(not solved|still not|nothing works|not resolved|doesn't work|doesnt work|useless)/.test(low)&&st.fixGiven){
+   if(!st.escalated){st.escalated=true;return "I'm sorry the first fix didn't work. I've escalated this to a senior specialist (Priority P1). They'll call you within 2 hours, and I'm adding a ₹200 goodwill credit to your account.";}
+   finish(false,'auto');return "I'm sorry we couldn't fix this today. I've recorded it as unresolved, and the escalation team will contact you directly. Your case stays open until you confirm it's fixed.";}
+ let open;
+ if(a.score<=-0.6) open="I'm really sorry, and I understand why you're angry. You shouldn't have to deal with this. ";
+ else if(a.score<=-0.3) open="I understand how frustrating this is, and I'm going to take care of it right now. ";
+ else if(a.score<-0.08) open="I'm sorry for the trouble. Let me help. ";
+ else if(a.score<0.35) open=trend>0.2?"Thanks for bearing with me. ":"Thanks for reaching out. ";
+ else open="That's great to hear! 😊 ";
+ if(!st.fixGiven&&(st.topic||n>=2)){st.fixGiven=true;return open+FIX[T]+" Does that solve it for you?";}
+ if(!st.topic&&n===1)return open+"Could you tell me a bit more: is it about delivery, a refund, a damaged product, a payment, or your account?";
+ if(trend<-0.2)return open+"I can tell this is getting worse for you. Would you like me to escalate it to a senior specialist?";
+ if(a.score>0.35)return open+"Just let me know if it's fully solved, or if anything is still open.";
+ return open+"Is this fixed now, or should I try something else?";
+}
+/* ===== UI ===== */
+const chat=document.getElementById('chat'),inp=document.getElementById('inp');
+function add(role,text,a){
+ const d=document.createElement('div');d.className='msg '+role;
+ const face=role==='user'?a.mood.face:'🤖';
+ const tag=role==='user'?`${a.mood.name} · ${a.score>=0?'+':''}${a.score.toFixed(2)}`:'Support Agent';
+ d.innerHTML=`<div class="face">${face}</div><div><div class="bubble"></div><div class="tag">${tag}</div></div>`;
+ d.querySelector('.bubble').textContent=text;chat.appendChild(d);chat.scrollTop=chat.scrollHeight;}
+let chart;
+function css(v){return getComputedStyle(document.documentElement).getPropertyValue(v).trim();}
+function drawChart(){
+ const pts=st.turns.map((t,i)=>({x:i+1,y:+t.score.toFixed(2),marker:{symbol:'circle'},face:t.mood.face}));
+ if(!chart){chart=Highcharts.chart('chart',{chart:{type:'spline',backgroundColor:'transparent',style:{fontFamily:css('--font-sans')}},
+  title:{text:null},credits:{enabled:false},legend:{enabled:false},
+  xAxis:{allowDecimals:false,title:{text:'Message #',style:{color:css('--color-text-muted')}},labels:{style:{color:css('--color-text-secondary')}}},
+  yAxis:{min:-1,max:1,title:{text:null},gridLineColor:css('--color-border-light'),labels:{style:{color:css('--color-text-secondary')}},
+   plotBands:[{from:-1,to:-0.08,color:css('--color-error-bg')},{from:0.12,to:1,color:css('--color-success-bg')}]},
+  tooltip:{formatter(){return `${this.point.face} Message ${this.x}: <b>${this.y}</b>`}},
+  plotOptions:{series:{dataLabels:{enabled:true,useHTML:true,formatter(){return '<span style="font-size:16px">'+this.point.face+'</span>'}}}},
+  series:[{data:pts,color:css('--color-primary'),lineWidth:3}]});}
+ else chart.series[0].setData(pts);}
+function updatePanel(a){
+ const f=document.getElementById('bigFace');f.textContent=a.mood.face;f.classList.add('pop');setTimeout(()=>f.classList.remove('pop'),250);
+ document.getElementById('moodName').textContent=a.mood.name;
+ document.getElementById('moodScore').textContent='score: '+(a.score>=0?'+':'')+a.score.toFixed(2)+'  (−1 to +1)';
+ document.getElementById('needle').style.left=((a.score+1)/2*100)+'%';
+ document.getElementById('agentLog').textContent='Sentiment agent → words found: '+(a.hits.join(', ')||'none')+' | topic: '+(st.topic||'unknown');
+ document.getElementById('journey').innerHTML=st.turns.map(t=>`<span title="${t.mood.name}">${t.mood.face}</span>`).join('<span class="arrow">→</span>')+(st.final?`<span class="arrow">⇒</span><span>${st.final}</span>`:'');
+ const k=st.turns;document.getElementById('kTurns').textContent=k.length;
+ document.getElementById('kStart').textContent=k[0].mood.face;
+ const sh=k[k.length-1].score-k[0].score;document.getElementById('kShift').textContent=(sh>=0?'▲ +':'▼ ')+sh.toFixed(2);
+ drawChart();}
+function send(txt){
+ const text=(txt||inp.value).trim();if(!text||st.done)return;inp.value='';
+ const a=analyze(text);st.turns.push({text,...a});add('user',text,a);updatePanel(a);
+ setTimeout(()=>{add('bot',reply(text,a),a);updatePanel(st.turns[st.turns.length-1]);},450);}
+function finish(ok,src){
+ if(st.done)return;st.done=true;
+ const last=st.turns.length?st.turns[st.turns.length-1]:null;
+ const start=st.turns.length?st.turns[0]:null;
+ st.final=ok?'🥳':'😞';
+ const o=document.getElementById('outcome');o.className=ok?'ok':'bad';
+ o.innerHTML=`<div class="f">${st.final}</div><b>${ok?'SOLVED: Customer satisfied':'NOT SOLVED: Customer left unhappy'}</b>
+  <div style="font-size:13px;margin-top:6px;color:var(--color-text-secondary)">Journey: ${start?start.mood.face:'n/a'} ${start?start.mood.name:''} → ${last?last.mood.face:''} ${last?last.mood.name:''} → ${st.final}<br>
+  ${st.turns.length} messages · ${st.escalated?'escalated':'no escalation'} · marked ${src==='auto'?'automatically from chat':'by agent'}</div>`;
+ if(last)updatePanel(last);
+ inp.placeholder='Conversation closed. Click "New customer" to start again.';}
+document.getElementById('send').onclick=()=>send();
+inp.addEventListener('keydown',e=>{if(e.key==='Enter')send();});
+document.getElementById('btnYes').onclick=()=>finish(true,'manual');
+document.getElementById('btnNo').onclick=()=>finish(false,'manual');
+document.getElementById('btnReset').onclick=()=>{Object.assign(st,{turns:[],topic:null,fixGiven:false,escalated:false,done:false,final:null});
+ chat.innerHTML='';document.getElementById('outcome').className='';document.getElementById('journey').innerHTML='';
+ if(chart){chart.destroy();chart=null;}inp.placeholder='Type your problem…';greet();};
+const samples=["My order is 6 days LATE and nobody is helping!!","This is the worst service, I want a refund","ok, that sounds better","Still not solved, nothing works","Thank you so much, it's resolved now!"];
+document.getElementById('chips').innerHTML=samples.map(s=>`<button class="ghost">${s}</button>`).join('');
+document.querySelectorAll('#chips button').forEach(b=>b.onclick=()=>send(b.textContent));
+function greet(){const d=document.createElement('div');d.className='msg bot';d.innerHTML='<div class="face">🤖</div><div><div class="bubble">Hi! I\'m your support assistant. Please tell me what went wrong.</div><div class="tag">Support Agent</div></div>';chat.appendChild(d);}
+greet();
+/* ===== Bulk review analysis ===== */
+function parseCSV(t){const rows=[];let r=[],f='',q=false;
+ for(let i=0;i<t.length;i++){const c=t[i];
+  if(q){if(c==='"'){if(t[i+1]==='"'){f+='"';i++}else q=false}else f+=c}
+  else if(c==='"')q=true;else if(c===','){r.push(f);f=''}
+  else if(c==='\n'||c==='\r'){if(c==='\r'&&t[i+1]==='\n')i++;r.push(f);f='';if(r.some(x=>x.trim()))rows.push(r);r=[]}
+  else f+=c}
+ r.push(f);if(r.some(x=>x.trim()))rows.push(r);return rows;}
+let bulk=[],bFilt='All',pie,bar;
+function runBulk(text){
+ const rows=parseCSV(text);if(rows.length<2){alert('No data rows found');return;}
+ const h=rows[0].map(x=>x.trim().toLowerCase());
+ let ti=h.findIndex(x=>/review|text|comment|body|content|feedback/.test(x));if(ti<0)ti=h.length-1;
+ const ri=h.findIndex(x=>/rating|stars|score/.test(x));
+ bulk=rows.slice(1).filter(r=>(r[ti]||'').trim()).map((r,i)=>{const a=analyze(r[ti]);return{id:i+1,text:r[ti],rating:ri>=0?parseFloat(r[ri]):null,score:a.score,mood:a.mood}});
+ bFilt='All';renderBulk();}
+function renderBulk(){
+ document.getElementById('bulkOut').style.display='block';document.getElementById('btnExport').disabled=false;
+ const n=bulk.length,avg=bulk.reduce((s,b)=>s+b.score,0)/n;
+ const pos=bulk.filter(b=>b.score>=0.12).length,neg=bulk.filter(b=>b.score<-0.08).length;
+ const am=MOODS.find(m=>avg>=m.min&&avg<m.max);
+ document.getElementById('bTotal').textContent=n;
+ document.getElementById('bAvg').textContent=am.face+' '+(avg>=0?'+':'')+avg.toFixed(2);
+ document.getElementById('bPos').textContent=Math.round(pos/n*100)+'%';
+ document.getElementById('bNeg').textContent=Math.round(neg/n*100)+'%';
+ const cols=['--color-error-dark','--color-error','--color-warning','--color-text-muted','--color-info','--color-success','--color-success-dark'].map(css);
+ const counts=MOODS.map(m=>bulk.filter(b=>b.mood===m).length);
+ const tx={color:css('--color-text')};
+ if(pie)pie.destroy();if(bar)bar.destroy();
+ pie=Highcharts.chart('bPie',{chart:{type:'pie',backgroundColor:'transparent'},title:{text:'Mood mix',style:tx},credits:{enabled:false},
+  plotOptions:{pie:{innerSize:'55%',dataLabels:{enabled:true,useHTML:true,format:'<span style="font-size:18px">{point.face}</span> {point.y}',style:tx}}},
+  series:[{name:'Reviews',data:MOODS.map((m,i)=>({name:m.name,face:m.face,y:counts[i],color:cols[i]})).filter(d=>d.y)}]});
+ const hasR=bulk.some(b=>b.rating!==null&&!isNaN(b.rating));
+ if(hasR){const stars=[1,2,3,4,5];
+  bar=Highcharts.chart('bBar',{chart:{type:'column',backgroundColor:'transparent'},title:{text:'Avg sentiment by star rating',style:tx},credits:{enabled:false},legend:{enabled:false},
+   xAxis:{categories:stars.map(s=>s+'★'),labels:{style:tx}},yAxis:{min:-1,max:1,title:{text:null},gridLineColor:css('--color-border-light'),labels:{style:tx}},
+   series:[{name:'Avg score',data:stars.map(s=>{const g=bulk.filter(b=>Math.round(b.rating)===s);const v=g.length?+(g.reduce((a,b)=>a+b.score,0)/g.length).toFixed(2):null;return{y:v,color:(v!==null&&v<0)?cols[1]:cols[5]}})}]});}
+ else{bar=Highcharts.chart('bBar',{chart:{type:'bar',backgroundColor:'transparent'},title:{text:'Reviews per mood',style:tx},credits:{enabled:false},legend:{enabled:false},
+   xAxis:{categories:MOODS.map(m=>m.face+' '+m.name),labels:{style:tx}},yAxis:{title:{text:null},labels:{style:tx},gridLineColor:css('--color-border-light')},
+   series:[{name:'Reviews',data:counts.map((c,i)=>({y:c,color:cols[i]}))}]});}
+ const fl=['All',...MOODS.filter((m,i)=>counts[i]).map(m=>m.face)];
+ document.getElementById('bFilter').innerHTML=fl.map(f=>`<button class="${f===bFilt?'primary':'ghost'}" data-f="${f}">${f}</button>`).join('');
+ document.querySelectorAll('#bFilter button').forEach(b=>b.onclick=()=>{bFilt=b.dataset.f;renderBulk();});
+ const th='style="text-align:left;padding:6px 8px;color:var(--color-text-muted);border-bottom:1px solid var(--color-border);position:sticky;top:0;background:var(--color-bg-secondary)"';
+ const td='style="padding:6px 8px;border-bottom:1px solid var(--color-border-light)"';
+ const list=bulk.filter(b=>bFilt==='All'||b.mood.face===bFilt);
+ const tb=document.getElementById('bTable');
+ tb.innerHTML=`<tr><th ${th}>#</th><th ${th}>Mood</th><th ${th}>Score</th>${hasR?`<th ${th}>Rating</th>`:''}<th ${th}>Review</th></tr>`;
+ list.forEach(b=>{const tr=document.createElement('tr');
+  tr.innerHTML=`<td ${td}>${b.id}</td><td ${td}><span style="font-size:20px">${b.mood.face}</span> <small>${b.mood.name}</small></td><td ${td}><span style="font-family:var(--font-mono)">${b.score>=0?'+':''}${b.score.toFixed(2)}</span></td>${hasR?`<td ${td}>${isNaN(b.rating)?'':b.rating+'★'}</td>`:''}<td ${td}></td>`;
+  tr.lastChild.textContent=b.text;tb.appendChild(tr);});}
+document.getElementById('csvFile').onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>runBulk(r.result);r.readAsText(f);};
+document.getElementById('btnSample').onclick=()=>runBulk(`rating,review
+5,"Absolutely amazing product, delivery was fast and packaging perfect!"
+1,"Worst experience ever. Item arrived broken and support was rude"
+4,"Good quality, works fine. Thanks"
+2,"Order was delayed by a week, very disappointed"
+3,"It's okay, nothing special"
+1,"SCAM!!! Never received my refund, totally useless service"
+5,"Love it! Customer support resolved my issue quickly"
+2,"Wrong size sent, still waiting for replacement"
+4,"Nice design, happy with the purchase"
+3,"Product is fine but the delivery was slow"
+1,"Terrible battery, stopped working in 2 days. Hate it"
+5,"Excellent value, really satisfied and will buy again"
+2,"Not good. Missing parts and confusing instructions"
+4,"Helpful seller, fixed the problem after one call"
+3,"Average. Hopefully the next version is better"`);
+document.getElementById('btnExport').onclick=()=>{const esc=x=>'"'+String(x).replace(/"/g,'""')+'"';
+ const csv='id,mood,mood_label,score,rating,review\n'+bulk.map(b=>[b.id,b.mood.face,b.mood.name,b.score.toFixed(3),b.rating??'',esc(b.text)].join(',')).join('\n');
+ const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['\ufeff'+csv],{type:'text/csv'}));a.download='review_sentiment_results.csv';a.click();};
+</script>
+</body></html>
